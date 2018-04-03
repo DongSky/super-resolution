@@ -15,12 +15,15 @@ from PIL import Image
 dataroot="/Users/DongSky/Downloads/faces/"
 outf="."
 imgSize=96
-learning_rate=0.0003
+learning_rate=1e-4
 batch_size=128
 channel=3
 workers=1
 epoches=100
 beta1=0.9
+model_out = "./models"
+if not os.path.exists(model_out):
+    os.makedirs(model_out)
 #####
 def default_loader(path):
     return Image.open(path).convert('RGB')
@@ -81,7 +84,7 @@ def init(l):
     elif isinstance(l, nn.BatchNorm2d):
         l.weight.data.normal_(1.0,0.02)
         l.bias.data.zero_()
-
+cnt = 0
 srcnn = SRCNN()
 srcnn.apply(init)
 if torch.cuda.is_available():
@@ -92,6 +95,7 @@ label = torch.FloatTensor(batch_size, 3, imgSize, imgSize)
 if torch.cuda.is_available():
     x, label = x.cuda(), label.cuda()
 opt = optim.Adam(srcnn.parameters(),betas=(0.9, 0.999), lr=learning_rate)
+sche = optim.lr_scheduler.StepLR(opt, step_size=20, gamma=0.5)
 for epoch in range(epoches):
     for i,data in enumerate(dataloader, 0):
         cnt += 1
@@ -121,8 +125,9 @@ for epoch in range(epoches):
             vutils.save_image(lr,
                               '%s/init_samples_epoch_%03d_iter_%04d.png' % (outf, epoch, i),
                               normalize=True)
-            upload('%s/real_samples_epoch_%03d_iter_%04d.png' % (outf, epoch, i))
-            upload('%s/fake_samples_epoch_%03d_iter_%04d.png' % (outf, epoch, i))
-            upload('%s/init_samples_epoch_%03d_iter_%04d.png' % (outf, epoch, i))
+            # upload('%s/real_samples_epoch_%03d_iter_%04d.png' % (outf, epoch, i))
+            # upload('%s/fake_samples_epoch_%03d_iter_%04d.png' % (outf, epoch, i))
+            # upload('%s/init_samples_epoch_%03d_iter_%04d.png' % (outf, epoch, i))
+    sche.step()
     torch.save(srcnn.state_dict(), '%s/net_epoch_%d.pth' % (model_out, epoch))
-    upload('%s/net_epoch_%d.pth' % (model_out, epoch))
+    # upload('%s/net_epoch_%d.pth' % (model_out, epoch))
